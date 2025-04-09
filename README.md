@@ -157,7 +157,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## �� Acknowledgments
+## 🙌 Acknowledgments
 
 - [MOABB](https://github.com/NeuroTechX/moabb) library for providing access to the datasets
 - MNE library for EEG processing capabilities
