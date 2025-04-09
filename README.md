@@ -1,7 +1,7 @@
 # 🧠 EEG Tutorial
 ## 📥 EEG Dataset Downloader
 
-This project provides a unified interface for downloading and preprocessing multiple EEG datasets for motor imagery (MI) research. It uses the MOABB (Mother of All BCI Benchmarks) library to access various datasets and processes them into a consistent format for further analysis.
+This project provides a unified interface for downloading and preprocessing multiple EEG datasets for motor imagery (MI) research. It uses the [MOABB](https://github.com/NeuroTechX/moabb) (Mother of All BCI Benchmarks) library to access various datasets and processes them into a consistent format for further analysis.
 
 ### 📊 Supported Datasets
 
@@ -157,8 +157,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## �� Acknowledgments
 
-- MOABB library for providing access to the datasets
+- [MOABB](https://github.com/NeuroTechX/moabb) library for providing access to the datasets
 - MNE library for EEG processing capabilities
 - The original dataset creators and contributors 
