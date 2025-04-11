@@ -162,3 +162,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [MOABB](https://github.com/NeuroTechX/moabb) library for providing access to the datasets
 - [MNE](https://mne.tools/stable/index.html) library for EEG processing capabilities
 - The original dataset creators and contributors 
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=zyao197/EEG-Tutorial&type=Date)](https://www.star-history.com/#zyao197/EEG-Tutorial&Date)
