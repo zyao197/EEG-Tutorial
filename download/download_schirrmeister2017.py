@@ -5,6 +5,9 @@ import os
 import mne
 from moabb.datasets import Schirrmeister2017
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # 设置MOABB数据下载目录
 moabb.set_download_dir('./data')
 
@@ -31,7 +34,7 @@ event_id = {
 }
 
 # 处理每个受试者的数据
-for subject in range(1, 15):  # 14个受试者
+for subject in range(1, 2):  # 14个受试者
     try:
         print(f"Processing subject {subject}")
         
@@ -39,10 +42,13 @@ for subject in range(1, 15):  # 14个受试者
         raw_data = dataset.get_data(subjects=[subject])
         
         # 遍历每个run
-        for run in range(1, 14):  # 13个runs
+        for run in range(1, 3):  # 13个runs
             try:
                 # 获取原始EEG数据
                 raw = raw_data[subject][1][run]  # 假设session固定为1
+                
+                # 只选择 EEG 通道
+                raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                 
                 # 如果指定了运动皮层通道，则只选择这些通道
                 if motor_cortex_channels is not None:

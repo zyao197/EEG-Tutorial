@@ -34,6 +34,9 @@ for subject in subjects:
                     # 获取原始数据
                     raw = data[subject][session][run]
                     
+                    # 只选择 EEG 通道
+                    raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                    
                     # 应用带通滤波器 (8-30Hz)
                     raw.filter(8, 30)
                     

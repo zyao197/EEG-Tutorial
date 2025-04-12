@@ -64,6 +64,9 @@ for subject in range(1, 10):  # BNCI2014_001有9个受试者
                             # 获取Raw对象
                             raw = session_data[run]
                             
+                            # 只选择 EEG 通道
+                            raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                            
                             # 应用带通滤波器
                             raw.filter(fmin, fmax, method='fir', phase='zero')
                             

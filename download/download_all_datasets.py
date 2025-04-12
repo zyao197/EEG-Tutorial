@@ -101,11 +101,10 @@ dataset_configs = {
         },
         'epoch_params': {
             'tmin': 0,
-            'tmax': 120  # Default value, will be adjusted based on run type
+            'tmax': 3  # Default value, will be adjusted based on run type
         },
         'attrs': {
-            'trial_duration': '120 seconds (0s-120s)',  # Default value, will be adjusted based on run type
-            'rest_period': '3-4 seconds'
+            'trial_duration': '3 seconds',  # Default value, will be adjusted based on run type
         }
     },
     'Schirrmeister2017': {
@@ -123,7 +122,6 @@ dataset_configs = {
         },
         'attrs': {
             'trial_duration': '4 seconds (0s-4s)',
-            'rest_period': '3-4 seconds'
         }
     }
 }
@@ -169,6 +167,9 @@ def process_bnci2014_001():
                             try:
                                 # Get Raw object
                                 raw = session_data[run]
+                                
+                                # 只选择 EEG 通道
+                                raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                                 
                                 # Apply bandpass filter
                                 raw.filter(fmin, fmax, method='fir', phase='zero')
@@ -264,6 +265,9 @@ def process_bnci2014_002():
                 # Get raw data
                 raw = data[subject][session][run]
                 
+                # 只选择 EEG 通道
+                raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                
                 # Apply bandpass filter (8-30Hz)
                 raw.filter(fmin, fmax)
                 
@@ -329,6 +333,9 @@ def process_lee2019_mi():
                         # Get raw data
                         raw = data[subject][session][run]
                         
+                        # 只选择 EEG 通道
+                        raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                        
                         # Apply bandpass filter (8-30Hz)
                         raw.filter(fmin, fmax)
                         
@@ -377,17 +384,13 @@ def process_physionet_mi():
     save_dir = save_dirs[dataset_name]
     
     # Initialize dataset
-    dataset = config['class'](imagined=True, executed=True)  # Get both imagined and executed movement data
+    dataset = config['class'](imagined=True, executed=False)  # Only get imagined movement data
     
     # Define task type mapping
     task_types = {
         'imagined': {
             'hand_runs': [4, 8, 12],  # Imagined single hand movement
             'feet_runs': [6, 10, 14]  # Imagined both hands/feet movement
-        },
-        'executed': {
-            'hand_runs': [3, 7, 11],  # Executed single hand movement
-            'feet_runs': [5, 9, 13]  # Executed both hands/feet movement
         }
     }
     
@@ -406,96 +409,121 @@ def process_physionet_mi():
                 # Get raw data
                 raw_data = dataset.get_data(subjects=[subject])
                 
-                # Iterate through each session
-                for session in raw_data[subject].keys():
+                # Get all runs for this subject
+                subject_data = raw_data[subject]['0']  # According to PhysionetMI class definition, data is stored under key '0'
+                
+                # Iterate through each run
+                for run_idx, run in enumerate(subject_data.keys()):
                     try:
-                        # Check if the session has already been processed
-                        session_file = f"subject_{subject}_session_{session}_data.csv"
-                        if os.path.exists(os.path.join(save_dir, session_file)):
-                            print(f"Session {session} already processed, skipping...")
+                        # Check if the run has already been processed
+                        run_file = f"subject_{subject}_run_{run_idx}_data.csv"
+                        if os.path.exists(os.path.join(save_dir, run_file)):
+                            print(f"Run {run_idx} already processed, skipping...")
                             continue
                             
-                        # Get raw EEG data
-                        session_data = raw_data[subject][session]
+                        # Get Raw object
+                        raw = subject_data[run]
                         
-                        # Iterate through each run
-                        for run in session_data.keys():
-                            try:
-                                # Get Raw object
-                                raw = session_data[run]
-                                
-                                # Apply bandpass filter
-                                raw.filter(fmin, fmax, method='fir', phase='zero')
-                                
-                                # Get event information
-                                events, event_dict = mne.events_from_annotations(raw)
-                                
-                                # Determine task type and run type
-                                run_number = int(run.split('_')[-1])
-                                task_type = 'imagined' if run_number in task_types['imagined']['hand_runs'] + task_types['imagined']['feet_runs'] else 'executed'
-                                run_type = 'hand' if run_number in task_types[task_type]['hand_runs'] else 'feet'
-                                
-                                # Create epochs (set different time windows based on task type)
-                                if run_number in [1, 2]:  # Baseline recording
-                                    tmin, tmax = 0, 60  # 1-minute baseline recording
-                                else:
-                                    tmin, tmax = 0, 120  # 2-minute task recording
-                                
-                                # Create epochs based on actually existing events
-                                # Only use events that actually exist in the current run
-                                available_events = {}
-                                for event_name, event_id_value in config['event_id'].items():
-                                    if event_id_value in events[:, 2]:
-                                        available_events[event_name] = event_id_value
-                                
-                                if not available_events:
-                                    print(f"No events found for subject {subject}, session {session}, run {run_number}, skipping...")
-                                    continue
-                                    
-                                epochs = mne.Epochs(raw, events, available_events, tmin=tmin, tmax=tmax,
-                                                  baseline=None, preload=True)
-                                
-                                # Convert to DataFrame
-                                df = epochs.to_data_frame()
-                                
-                                # Add label encoding
-                                label_map = config['event_id']
-                                
-                                # Add label column
-                                df['label'] = df['condition'].map(label_map)
-                                
-                                # Rearrange columns, place label next to condition
-                                cols = df.columns.tolist()
-                                condition_idx = cols.index('condition')
-                                cols.insert(condition_idx + 1, 'label')
-                                cols.remove('label')
-                                df = df[cols]
-                                
-                                # Add data information attributes
-                                df.attrs['sampling_rate'] = raw.info['sfreq']
-                                df.attrs['electrodes'] = raw.ch_names
-                                df.attrs['reference'] = raw.info.get('description', 'unknown')
-                                df.attrs['trial_duration'] = f"{tmax - tmin} seconds ({tmin}s-{tmax}s)"
-                                df.attrs['task_type'] = task_type
-                                df.attrs['run_type'] = run_type
-                                df.attrs['is_baseline'] = run_number in [1, 2]
-                                
-                                # Save as CSV file
-                                filename = f"subject_{subject}_session_{session}_run_{run_number}_data.csv"
-                                filepath = os.path.join(save_dir, filename)
-                                df.to_csv(filepath, index=False)
-                                
-                                print(f"Saved data for subject {subject}, session {session}, run {run_number}")
-                                
-                            except Exception as e:
-                                print(f"Error processing run {run} for subject {subject}, session {session}: {str(e)}")
-                                continue
+                        # 只选择 EEG 通道
+                        raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                        
+                        # Apply bandpass filter
+                        raw.filter(fmin, fmax, method='fir', phase='zero')
+                        
+                        # Get event information
+                        events, event_dict = mne.events_from_annotations(raw)
+                        
+                        # Determine run type and number
+                        run_number = None
+                        run_type = None
+                        
+                        if run_idx < len(dataset.hand_runs):
+                            run_type = 'hand'
+                            run_number = dataset.hand_runs[run_idx]
+                        else:
+                            run_type = 'feet'
+                            feet_idx = run_idx - len(dataset.hand_runs)
+                            run_number = dataset.feet_runs[feet_idx]
+                        
+                        # Modify event mapping based on run type
+                        # Original event mapping: {'T0': 1, 'T1': 2, 'T2': 3}
+                        # T0 corresponds to rest
+                        # T1 corresponds to left_hand (in hand_runs) or hands (in feet_runs)
+                        # T2 corresponds to right_hand (in hand_runs) or feet (in feet_runs)
+                        
+                        # Create epochs (according to PhysionetMI class definition, interval=[0, 3])
+                        tmin, tmax = 0, 3  # Each trial lasts 3 seconds
+                        
+                        # Create epochs based on run type and actually existing events
+                        available_events = {}
+                        
+                        # Do not add rest events (T0)
+                        # if 1 in events[:, 2]:  # Check if T0 events exist
+                        #     available_events['rest'] = 1
+                        
+                        # Add other events based on run type
+                        if run_type == 'hand':
+                            # For hand_runs: T1 corresponds to left_hand, T2 corresponds to right_hand
+                            if 2 in events[:, 2]:  # Check if T1 events exist
+                                available_events['left_hand'] = 2
+                            if 3 in events[:, 2]:  # Check if T2 events exist
+                                available_events['right_hand'] = 3
+                        else:
+                            # For feet_runs: T1 corresponds to hands, T2 corresponds to feet
+                            if 2 in events[:, 2]:  # Check if T1 events exist
+                                available_events['hands'] = 2
+                            if 3 in events[:, 2]:  # Check if T2 events exist
+                                available_events['feet'] = 3
+                        
+                        if not available_events:
+                            print(f"No events found for subject {subject}, run {run_number}, skipping...")
+                            continue
+                            
+                        epochs = mne.Epochs(raw, events, available_events, tmin=tmin, tmax=tmax,
+                                          baseline=None, preload=True)
+                        
+                        # Convert to DataFrame
+                        df = epochs.to_data_frame()
+                        
+                        # Add label encoding
+                        label_map = {
+                            'rest': 1,
+                            'left_hand': 2,
+                            'right_hand': 3,
+                            'hands': 4,
+                            'feet': 5
+                        }
+                        
+                        # Add label column
+                        df['label'] = df['condition'].map(label_map)
+                        
+                        # Rearrange columns, place label next to condition
+                        cols = df.columns.tolist()
+                        condition_idx = cols.index('condition')
+                        cols.insert(condition_idx + 1, 'label')
+                        cols.remove('label')
+                        df = df[cols]
+                        
+                        # Add data information attributes
+                        df.attrs['sampling_rate'] = raw.info['sfreq']
+                        df.attrs['electrodes'] = raw.ch_names
+                        df.attrs['reference'] = raw.info.get('description', 'unknown')
+                        df.attrs['trial_duration'] = f"{tmax - tmin} seconds ({tmin}s-{tmax}s)"
+                        df.attrs['run_type'] = run_type
+                        df.attrs['is_baseline'] = run_number in [1, 2]
+                        
+                        # Save as CSV file
+                        filename = f"subject_{subject}_run_{run_number}_data.csv"
+                        filepath = os.path.join(save_dir, filename)
+                        df.to_csv(filepath, index=False)
+                        
+                        print(f"Saved data for subject {subject}, run {run_number}")
                         
                     except Exception as e:
-                        print(f"Error processing session {session} for subject {subject}: {str(e)}")
+                        print(f"Error processing run {run_idx} for subject {subject}: {str(e)}")
                         continue
                         
-                # If all sessions are successfully processed, break the retry loop
+                # If all runs are successfully processed, break the retry loop
                 break
                 
             except Exception as e:
@@ -532,6 +560,9 @@ def process_schirrmeister2017():
                 try:
                     # Get raw EEG data
                     raw = raw_data[subject][1][run]  # Assume session is fixed at 1
+                    
+                    # 只选择 EEG 通道
+                    raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                     
                     # If motor cortex channels are specified, only select these channels
                     if motor_cortex_channels is not None:
