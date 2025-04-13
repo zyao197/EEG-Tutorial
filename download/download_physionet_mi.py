@@ -41,7 +41,7 @@ task_types = {
 max_retries = 3
 
 # 处理每个受试者的数据
-for subject in range(1, 2):  # 109个受试者
+for subject in range(1, 110):  # 109个受试者
     # 检查是否已经处理过该受试者
     subject_files = [f for f in os.listdir(save_dir) if f.startswith(f'subject_{subject}_')]
     if subject_files:
@@ -61,10 +61,22 @@ for subject in range(1, 2):  # 109个受试者
             # 遍历每个运行
             for run_idx, run in enumerate(subject_data.keys()):
                 try:
+                    # 确定运行类型和编号
+                    run_number = None
+                    run_type = None
+                    
+                    if run_idx < len(dataset.hand_runs):
+                        run_type = 'hand'
+                        run_number = dataset.hand_runs[run_idx]
+                    else:
+                        run_type = 'feet'
+                        feet_idx = run_idx - len(dataset.hand_runs)
+                        run_number = dataset.feet_runs[feet_idx]
+                    
                     # 检查是否已经处理过该运行
-                    run_file = f"subject_{subject}_run_{run_idx}_data.csv"
+                    run_file = f"subject_{subject}_run_{run_number}_data.csv"
                     if os.path.exists(os.path.join(save_dir, run_file)):
-                        print(f"Run {run_idx} already processed, skipping...")
+                        print(f"Run {run_number} already processed, skipping...")
                         continue
                         
                     # 获取Raw对象
@@ -78,18 +90,6 @@ for subject in range(1, 2):  # 109个受试者
                     
                     # 获取事件信息
                     events, event_dict = mne.events_from_annotations(raw)
-                    
-                    # 确定运行类型和编号
-                    run_number = None
-                    run_type = None
-                    
-                    if run_idx < len(dataset.hand_runs):
-                        run_type = 'hand'
-                        run_number = dataset.hand_runs[run_idx]
-                    else:
-                        run_type = 'feet'
-                        feet_idx = run_idx - len(dataset.hand_runs)
-                        run_number = dataset.feet_runs[feet_idx]
                     
                     # 根据运行类型修改事件映射
                     # 原始事件映射: {'T0': 1, 'T1': 2, 'T2': 3}
@@ -166,7 +166,7 @@ for subject in range(1, 2):  # 109个受试者
                     print(f"Saved data for subject {subject}, run {run_number}")
                     
                 except Exception as e:
-                    print(f"Error processing run {run_idx} for subject {subject}: {str(e)}")
+                    print(f"Error processing run {run_number} for subject {subject}: {str(e)}")
                     continue
                     
             # 如果成功处理完所有runs，跳出重试循环

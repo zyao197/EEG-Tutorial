@@ -168,7 +168,7 @@ def process_bnci2014_001():
                                 # Get Raw object
                                 raw = session_data[run]
                                 
-                                # 只选择 EEG 通道
+                                # Only select EEG channels
                                 raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                                 
                                 # Apply bandpass filter
@@ -265,7 +265,7 @@ def process_bnci2014_002():
                 # Get raw data
                 raw = data[subject][session][run]
                 
-                # 只选择 EEG 通道
+                # Only select EEG channels
                 raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                 
                 # Apply bandpass filter (8-30Hz)
@@ -333,7 +333,7 @@ def process_lee2019_mi():
                         # Get raw data
                         raw = data[subject][session][run]
                         
-                        # 只选择 EEG 通道
+                        # Only select EEG channels
                         raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                         
                         # Apply bandpass filter (8-30Hz)
@@ -415,24 +415,6 @@ def process_physionet_mi():
                 # Iterate through each run
                 for run_idx, run in enumerate(subject_data.keys()):
                     try:
-                        # Check if the run has already been processed
-                        run_file = f"subject_{subject}_run_{run_idx}_data.csv"
-                        if os.path.exists(os.path.join(save_dir, run_file)):
-                            print(f"Run {run_idx} already processed, skipping...")
-                            continue
-                            
-                        # Get Raw object
-                        raw = subject_data[run]
-                        
-                        # 只选择 EEG 通道
-                        raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
-                        
-                        # Apply bandpass filter
-                        raw.filter(fmin, fmax, method='fir', phase='zero')
-                        
-                        # Get event information
-                        events, event_dict = mne.events_from_annotations(raw)
-                        
                         # Determine run type and number
                         run_number = None
                         run_type = None
@@ -444,6 +426,24 @@ def process_physionet_mi():
                             run_type = 'feet'
                             feet_idx = run_idx - len(dataset.hand_runs)
                             run_number = dataset.feet_runs[feet_idx]
+                        
+                        # Check if the run has already been processed
+                        run_file = f"subject_{subject}_run_{run_number}_data.csv"
+                        if os.path.exists(os.path.join(save_dir, run_file)):
+                            print(f"Run {run_number} already processed, skipping...")
+                            continue
+                            
+                        # Get Raw object
+                        raw = subject_data[run]
+                        
+                        # Only select EEG channels
+                        raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+                        
+                        # Apply bandpass filter
+                        raw.filter(fmin, fmax, method='fir', phase='zero')
+                        
+                        # Get event information
+                        events, event_dict = mne.events_from_annotations(raw)
                         
                         # Modify event mapping based on run type
                         # Original event mapping: {'T0': 1, 'T1': 2, 'T2': 3}
@@ -520,7 +520,7 @@ def process_physionet_mi():
                         print(f"Saved data for subject {subject}, run {run_number}")
                         
                     except Exception as e:
-                        print(f"Error processing run {run_idx} for subject {subject}: {str(e)}")
+                        print(f"Error processing run {run_number} for subject {subject}: {str(e)}")
                         continue
                         
                 # If all runs are successfully processed, break the retry loop
@@ -561,7 +561,7 @@ def process_schirrmeister2017():
                     # Get raw EEG data
                     raw = raw_data[subject][1][run]  # Assume session is fixed at 1
                     
-                    # 只选择 EEG 通道
+                    # Only select EEG channels
                     raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
                     
                     # If motor cortex channels are specified, only select these channels
