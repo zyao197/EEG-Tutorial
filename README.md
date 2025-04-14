@@ -35,6 +35,8 @@ The following datasets are currently supported:
 - Trial duration: 4 seconds (0-4s)
 - Rest period: 3-4 seconds
 - 128 electrodes (44 covering motor cortex)
+- 2 runs per subject (1 training run, 1 test run)
+- Training/Test split: First run for training, second run for testing
 
 ### ✨ Features
 
@@ -148,6 +150,8 @@ Each dataset is saved as CSV files with the following structure:
 - Trial duration: 4 seconds (0-4s)
 - Rest period: 3-4 seconds
 - 128 electrodes (44 covering motor cortex)
+- 2 runs per subject (1 training run, 1 test run)
+- Training/Test split: First run for training, second run for testing
 
 ## 🤝 Contributing
 
