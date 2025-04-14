@@ -547,79 +547,98 @@ def process_schirrmeister2017():
     # Index of 44 sensors related to motor cortex (needs to be filled with actual channel indices based on the dataset)
     motor_cortex_channels = None  # Need to fill in the 44 motor cortex sensor indices in actual use
     
+    def process_raw_data(raw_data, is_test=False, subject=None, run=None):
+        """Process raw data and return DataFrame"""
+        try:
+            # Select EEG channels
+            raw_data.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
+            
+            # If motor cortex channels are specified, only select these channels
+            if motor_cortex_channels is not None:
+                raw_data.pick_channels(motor_cortex_channels)
+            
+            # Apply bandpass filter
+            raw_data.filter(fmin, fmax, method='fir', phase='zero')
+            
+            # Get event information
+            try:
+                events, _ = mne.events_from_annotations(raw_data)
+            except ValueError:
+                events = np.array([[0, 0, 1]])
+            
+            # Create epochs
+            epochs = mne.Epochs(raw_data, events, config['event_id'], 
+                              tmin=config['epoch_params']['tmin'], 
+                              tmax=config['epoch_params']['tmax'],
+                              baseline=None, preload=True)
+            
+            # Convert to DataFrame
+            df = epochs.to_data_frame()
+            
+            # Add label encoding
+            df['label'] = df['condition'].map(config['event_id'])
+            
+            # Rearrange columns, place label next to condition
+            cols = df.columns.tolist()
+            condition_idx = cols.index('condition')
+            cols.insert(condition_idx + 1, 'label')
+            cols.remove('label')
+            df = df[cols]
+            
+            # Add dataset split information
+            df['is_test'] = is_test
+            
+            # Add data information attributes
+            df.attrs['sampling_rate'] = raw_data.info['sfreq']
+            df.attrs['electrodes'] = raw_data.ch_names
+            df.attrs['reference'] = raw_data.info.get('description', 'unknown')
+            
+            # Add dataset-specific attributes
+            for key, value in config['attrs'].items():
+                df.attrs[key] = value
+            
+            return df
+        except Exception as e:
+            print(f"Error processing data: {str(e)}")
+            return None
+    
+    def save_dataframe(df, subject, is_test, run=None):
+        """Save DataFrame to CSV file"""
+        if df is None:
+            return
+        
+        set_type = 'test' if is_test else 'train'
+        if run is not None:
+            filename = f"subject_{subject}_run_{run}_{set_type}_data.csv"
+        else:
+            filename = f"subject_{subject}_{set_type}_data.csv"
+            
+        filepath = os.path.join(save_dir, filename)
+        df.to_csv(filepath, index=False)
+        print(f"Saved {set_type} data to: {filepath}")
+    
     # Process data for each subject
     for subject in range(1, 15):  # 14 subjects
         try:
-            print(f"Processing {dataset_name} subject {subject}")
+            print(f"\nStarting to process subject {subject}")
             
             # Get raw data
             raw_data = dataset.get_data(subjects=[subject])
             
-            # Iterate through each run
-            for run in range(1, 14):  # 13 runs
-                try:
-                    # Get raw EEG data
-                    raw = raw_data[subject][1][run]  # Assume session is fixed at 1
-                    
-                    # Only select EEG channels
-                    raw.pick_types(eeg=True, meg=False, stim=False, eog=False, emg=False, misc=False)
-                    
-                    # If motor cortex channels are specified, only select these channels
-                    if motor_cortex_channels is not None:
-                        raw.pick_channels(motor_cortex_channels)
-                    
-                    # Apply bandpass filter
-                    raw.filter(fmin, fmax, method='fir', phase='zero-phase')
-                    
-                    # Get event information
-                    events, _ = mne.events_from_annotations(raw)
-                    
-                    # Create epochs
-                    epochs = mne.Epochs(raw, events, config['event_id'], 
-                                      tmin=config['epoch_params']['tmin'], 
-                                      tmax=config['epoch_params']['tmax'],
-                                      baseline=None, preload=True)
-                    
-                    # Convert to DataFrame
-                    df = epochs.to_data_frame()
-                    
-                    # Add label encoding
-                    label_map = config['event_id']
-                    
-                    # Add label column
-                    df['label'] = df['condition'].map(label_map)
-                    
-                    # Rearrange columns, place label next to condition
-                    cols = df.columns.tolist()
-                    condition_idx = cols.index('condition')
-                    cols.insert(condition_idx + 1, 'label')
-                    cols.remove('label')
-                    df = df[cols]
-                    
-                    # Add dataset split information (train/test)
-                    is_test = run >= 12  # Last two runs as test set
-                    df['is_test'] = is_test
-                    
-                    # Add data information attributes
-                    df.attrs['sampling_rate'] = raw.info['sfreq']
-                    df.attrs['electrodes'] = raw.ch_names
-                    df.attrs['reference'] = raw.info.get('description', 'unknown')
-                    
-                    # Add dataset-specific attributes
-                    for key, value in config['attrs'].items():
-                        df.attrs[key] = value
-                    
-                    # Save as CSV file
-                    set_type = 'test' if is_test else 'train'
-                    filename = f"subject_{subject}_run_{run}_{set_type}_data.csv"
-                    filepath = os.path.join(save_dir, filename)
-                    df.to_csv(filepath, index=False)
-                    
-                    print(f"Saved {set_type} data for subject {subject}, run {run}")
-                    
-                except Exception as e:
-                    print(f"Error processing run {run} for subject {subject}: {str(e)}")
-                    continue
+            # Get training and testing data
+            sessions = raw_data[subject]
+            train_raw = sessions['0']['0train']  # Training data
+            test_raw = sessions['0']['1test']    # Testing data
+            
+            # Process training data
+            print("Processing training data...")
+            train_df = process_raw_data(train_raw, is_test=False, subject=subject)
+            save_dataframe(train_df, subject, is_test=False)
+            
+            # Process testing data
+            print("Processing testing data...")
+            test_df = process_raw_data(test_raw, is_test=True, subject=subject)
+            save_dataframe(test_df, subject, is_test=True)
                     
         except Exception as e:
             print(f"Error processing subject {subject}: {str(e)}")

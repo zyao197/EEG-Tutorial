@@ -1301,3 +1301,5 @@ download/data_physionet_mi/subject_9_run_4_data.csv
 download/data_physionet_mi/subject_9_run_6_data.csv
 download/data_physionet_mi/subject_9_run_8_data.csv
 .DS_Store
+/download/data
+/download/data_high_gamma
