@@ -169,4 +169,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Star History
 
+## Star History
+
 [![Star History Chart](https://api.star-history.com/svg?repos=zyao197/EEG-Tutorial&type=Timeline)](https://www.star-history.com/#zyao197/EEG-Tutorial&Timeline)
